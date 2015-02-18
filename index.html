@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="http://d3js.org/d3.v3.min.js"  charset="utf-8"></script>
+
+<div id="biovis"></div>
+
+<script>
+
+var height = 1000,
+    width = 1000
+
+
+
+var data = d3.csv("breast-cancer-wisconsin-data.csv", function(d) {
+    return {
+        id: +d.Sample_Code_Number,
+        clumpThickness: (d.Clump_Thickness == '?') ? null : +d.Clump_Thickness,
+        sizeUniformity: (d.Uniformity_of_Cell_Size == '?') ? null : +d.Uniformity_of_Cell_Size,
+        shapeUniformity: (d.Uniformity_of_Cell_Shape == '?') ? null : +d.Uniformity_of_Cell_Shape,
+        marginalAdhesion: (d.Marginal_Adhesion == '?') ? null : +d.Marginal_Adhesion,
+        epethelialSize: (d.Single_Epithelial_Cell_Size == '?') ? null : +d.Single_Epithelial_Cell_Size,
+        bareNuclei: (d.Bare_Nuclei == '?') ? null : +d.Bare_Nuclei,
+        blandChromatin: (d.Bland_Chromatin == '?') ? null : +d.Bland_Chromatin,
+        normalNucleoli: (d.Normal_Nucleoli == '?') ? null : +d.Normal_Nucleoli,
+        mitoses: (d.Mitoses == '?') ? null : +d.Mitoses,
+        type: (d.Class == '2') ? 'beneign' : 'malignant'
+    }},
+    function(error, rows) {
+        console.log(rows);
+    });
+
+var bv = d3.select('#biovis');
+
+var svg = bv.append('svg')
+    .attr('width', 400)
+    .attr('height', 300);
+
+</script>
