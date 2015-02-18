@@ -1,37 +1,201 @@
 <!DOCTYPE html>
-<script src="http://d3js.org/d3.v3.min.js"  charset="utf-8"></script>
+<meta charset="utf-8">
+<style>
 
-<div id="biovis"></div>
+svg {
+  font: 10px sans-serif;
+  padding: 10px;
+}
 
+.axis,
+.frame {
+  shape-rendering: crispEdges;
+}
+
+.axis line {
+  stroke: #ddd;
+}
+
+.axis path {
+  display: none;
+}
+
+.frame {
+  fill: none;
+  stroke: #aaa;
+}
+
+.selectedOption {
+  fill: #636363;
+}
+
+.nonSelectedOption {
+  fill: #bdbdbd;
+}
+
+circle {
+  fill-opacity: .1;
+}
+
+</style>
+<body>
+<script src="http://d3js.org/d3.v3.min.js"></script>
 <script>
 
-var height = 1000,
-    width = 1000
+var width = 960,
+    size = 150,
+    padding = 19.5;
 
+var x = d3.scale.linear()
+    .range([padding / 2, size - padding / 2]);
 
+var y = d3.scale.linear()
+    .range([size - padding / 2, padding / 2]);
 
-var data = d3.csv("breast-cancer-wisconsin-data.csv", function(d) {
-    return {
-        id: +d.Sample_Code_Number,
-        clumpThickness: (d.Clump_Thickness == '?') ? null : +d.Clump_Thickness,
-        sizeUniformity: (d.Uniformity_of_Cell_Size == '?') ? null : +d.Uniformity_of_Cell_Size,
-        shapeUniformity: (d.Uniformity_of_Cell_Shape == '?') ? null : +d.Uniformity_of_Cell_Shape,
-        marginalAdhesion: (d.Marginal_Adhesion == '?') ? null : +d.Marginal_Adhesion,
-        epethelialSize: (d.Single_Epithelial_Cell_Size == '?') ? null : +d.Single_Epithelial_Cell_Size,
-        bareNuclei: (d.Bare_Nuclei == '?') ? null : +d.Bare_Nuclei,
-        blandChromatin: (d.Bland_Chromatin == '?') ? null : +d.Bland_Chromatin,
-        normalNucleoli: (d.Normal_Nucleoli == '?') ? null : +d.Normal_Nucleoli,
-        mitoses: (d.Mitoses == '?') ? null : +d.Mitoses,
-        type: (d.Class == '2') ? 'beneign' : 'malignant'
-    }},
-    function(error, rows) {
-        console.log(rows);
-    });
+var xAxis = d3.svg.axis()
+    .scale(x)
+    .orient("bottom")
+    .ticks(5);
 
-var bv = d3.select('#biovis');
+var yAxis = d3.svg.axis()
+    .scale(y)
+    .orient("left")
+    .ticks(5);
 
-var svg = bv.append('svg')
-    .attr('width', 400)
-    .attr('height', 300);
+var color = d3.scale.ordinal().
+  domain(['malignant','beneign']).
+  range(['rgb(239,138,98)','rgb(103,169,207)']);
+
+d3.csv("breast-cancer-wisconsin-data.csv", function(d) {
+  return {
+    id: +d.Sample_Code_Number,
+    clumpThickness: (d.Clump_Thickness == '?') ? 0 : +d.Clump_Thickness,
+    sizeUniformity: (d.Uniformity_of_Cell_Size == '?') ? 0 : +d.Uniformity_of_Cell_Size,
+    shapeUniformity: (d.Uniformity_of_Cell_Shape == '?') ? 0 : +d.Uniformity_of_Cell_Shape,
+    marginalAdhesion: (d.Marginal_Adhesion == '?') ? 0 : +d.Marginal_Adhesion,
+    epethelialSize: (d.Single_Epithelial_Cell_Size == '?') ? 0 : +d.Single_Epithelial_Cell_Size,
+    bareNuclei: (d.Bare_Nuclei == '?') ? 0 : +d.Bare_Nuclei,
+    blandChromatin: (d.Bland_Chromatin == '?') ? 0 : +d.Bland_Chromatin,
+    normalNucleoli: (d.Normal_Nucleoli == '?') ? 0 : +d.Normal_Nucleoli,
+    mitoses: (d.Mitoses == '?') ? 0 : +d.Mitoses,
+    type: (d.Class == '2') ? 'beneign' : 'malignant'
+  }},
+  function(error, data) {
+    var domainByTrait = {},
+    traits = d3.keys(data[0]).filter(function(d) { return !(d == "type" || d =="id"); }),
+    active = {};
+
+    traits.forEach(function(trait) {
+    domainByTrait[trait] = d3.extent(data, function(d) { return d[trait]; });
+    active[trait] = true;
+  });
+
+  // drawChart(d3.keys(data[0]).filter(function(d) { return d == "clumpThickness" || d == "sizeUniformity" }));
+  drawChart();
+
+  function drawChart() {
+    d3.select("svg").remove();
+
+    var categories = d3.keys(data[0]).filter(function(d) { return active[d] });
+
+    var n = categories.length;
+
+    xAxis.tickSize(size * n);
+    yAxis.tickSize(-size * n);
+
+    var svg = d3.select("body").append("svg")
+        .attr("width", size * n + padding + size)
+        .attr("height", size * n + padding)
+      .append("g")
+        .attr("transform", "translate(" + padding + "," + padding / 2 + ")");
+
+      svg.selectAll(".x.axis")
+        .data(categories)
+      .enter().append("g")
+        .attr("class", "x axis")
+        .attr("transform", function(d, i) { return "translate(" + (n - i - 1) * size + ",0)"; })
+        .each(function(d) { x.domain(domainByTrait[d]); d3.select(this).call(xAxis); });
+
+    svg.selectAll(".y.axis")
+        .data(categories)
+      .enter().append("g")
+        .attr("class", "y axis")
+        .attr("transform", function(d, i) { return "translate(0," + i * size + ")"; })
+        .each(function(d) { y.domain(domainByTrait[d]); d3.select(this).call(yAxis); });
+
+    var cell = svg.selectAll(".cell")
+      .data(cross(categories, categories))
+    .enter().append("g")
+      .attr("class", "cell")
+      .attr("transform", function(d) { return "translate(" + (n - d.i - 1) * size + "," + d.j * size + ")"; })
+      .each(plot);
+
+    // Titles for the diagonal.
+    cell.filter(function(d) { return d.i === d.j; }).append("text")
+      .attr("x", padding)
+      .attr("y", padding)
+      .attr("dy", ".71em")
+      .text(function(d) { return d.x; });
+
+    var options = svg.selectAll(".options")
+      .data(traits)
+    .enter().append("g")
+      .attr("transform", function(d, i) { return "translate(" + n * size + "," + i * 25 + ")"; })
+      .each(addOption);
+
+    d3.select(self.frameElement).style("height", size * n + padding + 20 + "px");
+  }
+
+  function addOption(o) {
+    var space = d3.select(this);
+
+    space.on("click", function() {
+        d3.select(this).attr("fill", "#bdbdbd");
+        active[o] = active[o] ? false : true;
+        drawChart();
+      });
+
+    space.append("rect").attr("class", active[o] ? "selectedOption" : "nonSelectedOption")
+      .attr("x", padding)
+      .attr("y", padding)
+      .attr("width", size/2 + padding)
+      .attr("height", 20);
+
+    space.append("text")
+      .attr("x", padding + 2)
+      .attr("y", padding + 5)
+      .attr("dy", ".71em")
+      .style("fill", "white")
+      .text(o);
+  }
+
+  function plot(p) {
+    var cell = d3.select(this);
+
+    x.domain(domainByTrait[p.x]);
+    y.domain(domainByTrait[p.y]);
+
+    cell.append("rect")
+        .attr("class", "frame")
+        .attr("x", padding / 2)
+        .attr("y", padding / 2)
+        .attr("width", size - padding)
+        .attr("height", size - padding);
+
+    cell.selectAll("circle")
+        .data(data)
+      .enter().append("circle")
+        .attr("cx", function(d) { return x(d[p.x]); })
+        .attr("cy", function(d) { return y(d[p.y]); })
+        .attr("r", 3)
+        .style("fill", function(d) { return color(d.type); });
+  }
+
+  function cross(a, b) {
+    var c = [], n = a.length, m = b.length, i, j;
+    for (i = -1; ++i < n;) for (j = -1; ++j < m;) c.push({x: a[i], i: i, y: b[j], j: j});
+    return c;
+  }
+});
 
 </script>
